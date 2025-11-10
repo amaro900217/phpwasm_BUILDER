@@ -64,7 +64,7 @@ docker buildx bake --no-cache
 - Disk space: compilation can use several GB; mount `/tmp` from host if needed.  
 - Emscripten warnings (undefined POSIX symbols, etc.) are normal.  
 - Only `.wasm` and `.mjs` files are copied to `/output` to avoid directory conflicts.
-- Check built artifacts: php -S localhost:8080 -t build
+- Check built artifacts: `php -S localhost:8080 -t build`
 
 ## Run Help
 
