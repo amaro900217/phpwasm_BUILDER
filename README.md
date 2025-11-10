@@ -39,6 +39,7 @@ apptainer run \
 Custom PHP or libxml2 versions:
 
 ```bash
+apptainer build php-wasm.sif php-wasm.def
 apptainer run \
     -B "$(pwd)/temp":/tmp \
     -B "$(pwd)/source":/src \
