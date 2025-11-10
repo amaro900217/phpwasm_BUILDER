@@ -1,4 +1,4 @@
-# php_wasm_BUILDER (apptainer required)
+# php_wasm_BUILDER
 
 This apptainer container compiles **PHP to WebAssembly (PHP-WASM)** with **libxml2** and **SQLite** support.  
 The SIF only sets up the build environment; downloading sources and compiling happens at runtime. 
