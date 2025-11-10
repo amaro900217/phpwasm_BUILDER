@@ -1,6 +1,6 @@
 # phpwasm_BUILDER
 
-Portable, self-contained environment to build specific versions of PHP for the WebAssembly platform using apptainer. Compile **PHP to WebAssembly (PHP-WASM)** with **libxml2** and **SQLite** support. The SIF sets up the build environment, downloading sources and compiling PHP happens at runtime. Apptainer required. 
+Portable, self-contained environment to build specific versions of PHP for the WebAssembly platform using apptainer. Compile **PHP to WebAssembly (PHP-WASM)** with **libxml2** and **SQLite** support. The SIF sets up the build environment, downloading sources and compiling PHP happens at runtime.
 
 ## Runtime Environment Variables (optional, defaults shown)
 
