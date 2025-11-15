@@ -1,5 +1,5 @@
 Bootstrap: docker
-From: emscripten/emsdk:3.1.35
+From: emscripten/emsdk:3.1.61
 
 %help
     Container for generating PHP-WASM with libxml2 and SQLite.
