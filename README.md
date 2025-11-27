@@ -24,7 +24,7 @@ The script will:
 - 🧹 Clean up temporary files
 - 🌐 Suggest how to test the build
 
-### Manual Build With a .sif Image
+### Manual Build With a Generated .sif Image
 
 If you prefer to build manually:
 
