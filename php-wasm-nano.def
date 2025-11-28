@@ -1,0 +1,191 @@
+Bootstrap: docker
+From: emscripten/emsdk:3.1.61
+
+%help
+    NANO PHP-WASM Container - Absolutely smallest possible PHP build
+    
+    This is the most aggressive minimal build possible. Uses:
+    - Ultra-minimal PHP configure
+    - Aggressive Emscripten optimization flags
+    - Tiny memory footprint (16MB initial)
+    - emmalloc (smaller allocator)
+    - Function/data section GC
+    - No unwind tables, no exceptions
+    
+    WARNING: This is EXPERIMENTAL. May not work for all use cases.
+    
+    Usage:
+    
+    apptainer build php-wasm-nano.sif php-wasm-nano.def
+    apptainer run \
+        -B "$(pwd)/temp":/tmp \
+        -B "$(pwd)/source":/src \
+        -B "$(pwd)":/output \
+        php-wasm-nano.sif
+    
+    Optional environment variables:
+    * PHP_BRANCH=php-8.5.0
+    * INITIAL_MEMORY=16mb (default)
+
+%environment
+    export PATH=/usr/local/bin:$PATH
+
+%post
+    set -e
+
+    apt-get update && \
+    apt-get --no-install-recommends -y install \
+        build-essential automake autoconf libtool \
+        bison re2c git wget && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+    mkdir -p /output
+
+%files
+    ./source /src/source
+
+%runscript
+    set -e
+
+    export TMPDIR=${TMPDIR:-/tmp}
+    export EMCC_TEMP_DIR=${TMPDIR}
+    mkdir -p "$TMPDIR" "$EMCC_TEMP_DIR"
+
+    BUILD_DIR="$TMPDIR/build"
+    mkdir -p "$BUILD_DIR"
+
+    export PHP_BRANCH="${PHP_BRANCH:-php-8.5.0}"
+    export INITIAL_MEMORY="${INITIAL_MEMORY:-32mb}"
+
+    echo "=== NANO PHP-WASM Compilation (Safe Size Optimization) ==="
+    echo "PHP: $PHP_BRANCH"
+    echo "Initial Memory: $INITIAL_MEMORY"
+
+    # --- Flags de compilación agresivos pero SEGUROS ---
+    export OPTIMIZE="-Oz"
+    export SAFE_FLAGS="-ffunction-sections -fdata-sections"
+    export CFLAGS="$OPTIMIZE $SAFE_FLAGS -DHAVE_REALLOCARRAY"
+    export CXXFLAGS="$OPTIMIZE $SAFE_FLAGS"
+    export LDFLAGS="-Wl,--gc-sections"
+
+    # --- PHP ---
+    echo "Downloading PHP ($PHP_BRANCH)..."
+    cd "$BUILD_DIR"
+    git clone --branch "$PHP_BRANCH" --single-branch --depth 1 https://github.com/php/php-src.git php-src
+    cd php-src
+    ./buildconf --force
+
+    # --- PARCHE REALLOCARRAY ---
+    echo "Patching for PHP 8.5..."
+    export CPPFLAGS="$CPPFLAGS -DHAVE_REALLOCARRAY"
+    
+    if [ -f "main/php_glob.c" ]; then
+        sed -i 's/^static void \*reallocarray/\/\/ static void *reallocarray/' main/php_glob.c
+        sed -i 's/^reallocarray(void \*optr/\/\/ reallocarray(void *optr/' main/php_glob.c
+    fi
+
+    # --- CONFIGURACIÓN NANO ---
+    echo "Configuring PHP with NANO settings (FORCE DISABLE EVERYTHING)..."
+    emconfigure ./configure \
+        --disable-all \
+        --enable-embed=static \
+        --disable-cgi \
+        --disable-cli \
+        --disable-fiber-asm \
+        --disable-phpdbg \
+        --without-pear \
+        --without-pcre-jit \
+        --disable-rpath \
+        --disable-opcache \
+        --disable-opcache-jit \
+        --disable-zend-test \
+        --disable-posix \
+        --disable-sockets \
+        --disable-pcntl \
+        --disable-sysvmsg \
+        --disable-sysvsem \
+        --disable-sysvshm \
+        --disable-intl \
+        --disable-exif \
+        --disable-gettext \
+        --disable-imap \
+        --disable-ldap \
+        --disable-odbc \
+        --disable-pgsql \
+        --disable-phar \
+        --disable-shmop \
+        --disable-snmp \
+        --disable-soap \
+        --disable-tidy \
+        --disable-wddx \
+        --disable-xmlrpc \
+        --disable-xsl \
+        --disable-zlib
+
+    find . -name "*.lo" -delete 2>/dev/null || true
+    find . -name "*.o" -delete 2>/dev/null || true
+
+    emmake make -j$(nproc)
+
+    bash -c '[[ -f .libs/libphp7.la ]] && mv .libs/libphp7.la .libs/libphp.la && mv .libs/libphp7.a .libs/libphp.a && mv .libs/libphp7.lai .libs/libphp.lai || exit 0'
+
+    # --- Compilar phpw.c con flags seguros ---
+    echo "Compiling phpw.c..."
+    cp /src/phpw.c ./phpw.c
+    emcc $OPTIMIZE $SAFE_FLAGS \
+        -I. -IZend -Imain -ITSRM/ \
+        -c ./phpw.c \
+        -o "$BUILD_DIR/phpw.o"
+
+    # --- Linking NANO a WASM (optimizado pero funcional) ---
+    echo "Linking to WASM (NANO build with safe optimizations)..."
+    emcc $OPTIMIZE $SAFE_FLAGS \
+        -o /output/php-web.mjs \
+        $LDFLAGS \
+        -flto \
+        -s EXPORTED_FUNCTIONS='["_phpw","_phpw_flush","_phpw_exec","_phpw_run","_chdir","_setenv","_php_embed_init","_php_embed_shutdown","_zend_eval_string"]' \
+        -s EXPORTED_RUNTIME_METHODS='["ccall","UTF8ToString","lengthBytesUTF8","FS"]' \
+        -s ENVIRONMENT=web \
+        -s FORCE_FILESYSTEM=1 \
+        -s MALLOC=emmalloc \
+        -s MAXIMUM_MEMORY=256mb \
+        -s INITIAL_MEMORY="$INITIAL_MEMORY" \
+        -s ALLOW_MEMORY_GROWTH=1 \
+        -s ASSERTIONS=0 \
+        -s RUNTIME_DEBUG=0 \
+        -s DYNAMIC_EXECUTION=0 \
+        -s WASM_BIGINT=1 \
+        -s ERROR_ON_UNDEFINED_SYMBOLS=0 \
+        -s DISABLE_EXCEPTION_CATCHING=1 \
+        -s MODULARIZE=1 \
+        -s INVOKE_RUN=0 \
+        -s LZ4=0 \
+        -s STACK_SIZE=256kb \
+        -s ABORTING_MALLOC=0 \
+        -s INCOMING_MODULE_JS_API=['print','wasmBinary','noInitialRun'] \
+        -s EXPORT_ES6=1 \
+        -s EXPORT_NAME=createPhpModule \
+        -lidbfs.js \
+        "$BUILD_DIR/phpw.o" .libs/libphp.a
+
+    echo ""
+    echo "=== NANO Build Complete ==="
+    ls -lh /output/php-web.*
+    
+    WASM_SIZE=$(stat -c%s /output/php-web.wasm)
+    JS_SIZE=$(stat -c%s /output/php-web.mjs)
+    TOTAL_SIZE=$((WASM_SIZE + JS_SIZE))
+    
+    echo ""
+    echo "📦 Final sizes:"
+    echo "  WASM: $(numfmt --to=iec-i --suffix=B $WASM_SIZE)"
+    echo "  JS:   $(numfmt --to=iec-i --suffix=B $JS_SIZE)"
+    echo "  TOTAL: $(numfmt --to=iec-i --suffix=B $TOTAL_SIZE)"
+    echo ""
+    
+    cp /output/*.wasm "$PWD" 2>/dev/null || true
+    cp /output/*.mjs "$PWD" 2>/dev/null || true
+    
+    echo "Cleaning up..."
+    rm -rf "$BUILD_DIR"
+    echo "🎯 NANO PHP-WASM complete!"
