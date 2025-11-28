@@ -62,7 +62,7 @@ From: emscripten/emsdk:3.1.61
     echo "Initial Memory: $INITIAL_MEMORY"
 
     # --- Flags de compilación agresivos pero SEGUROS ---
-    export OPTIMIZE="-Oz"
+    export OPTIMIZE="-O3"
     export SAFE_FLAGS="-ffunction-sections -fdata-sections"
     export CFLAGS="$OPTIMIZE $SAFE_FLAGS -DHAVE_REALLOCARRAY"
     export CXXFLAGS="$OPTIMIZE $SAFE_FLAGS"
@@ -88,6 +88,7 @@ From: emscripten/emsdk:3.1.61
     echo "Configuring PHP with NANO settings (FORCE DISABLE EVERYTHING)..."
     emconfigure ./configure \
         --disable-all \
+        --with-config-file-path=/src/php \
         --enable-embed=static \
         --disable-cgi \
         --disable-cli \
@@ -99,28 +100,57 @@ From: emscripten/emsdk:3.1.61
         --disable-opcache \
         --disable-opcache-jit \
         --disable-zend-test \
-        --disable-posix \
+        --disable-shmop \
+        --disable-soap \
         --disable-sockets \
-        --disable-pcntl \
         --disable-sysvmsg \
         --disable-sysvsem \
         --disable-sysvshm \
-        --disable-intl \
-        --disable-exif \
-        --disable-gettext \
-        --disable-imap \
-        --disable-ldap \
-        --disable-odbc \
-        --disable-pgsql \
+        --disable-json \
+        --disable-hash \
+        --disable-random \
+        --disable-date \
+        --disable-libxml \
+        --disable-simplexml \
+        --disable-xml \
+        --disable-dom \
+        --disable-xmlreader \
+        --disable-xmlwriter \
+        --disable-calendar \
+        --disable-tokenizer \
+        --disable-mbstring \
+        --disable-filter \
         --disable-phar \
-        --disable-shmop \
-        --disable-snmp \
-        --disable-soap \
-        --disable-tidy \
-        --disable-wddx \
-        --disable-xmlrpc \
-        --disable-xsl \
-        --disable-zlib
+        --disable-pdo \
+        --disable-ctype \
+        --disable-fileinfo \
+        --disable-short-tags \
+        --disable-ftp \
+        --disable-ipv6 \
+        --disable-zend-signals
+
+    # --- PARCHE HASH: Reducir algoritmos (Optimización de tamaño) ---
+    # Modificamos config.m4 para NO compilar algoritmos obsoletos/pesados
+    if [ -f "ext/hash/config.m4" ]; then
+        echo "✂️  Trimming Hash extension algorithms..."
+        # Lista de algoritmos a excluir de la compilación
+        sed -i 's/hash_whirlpool.c//g' ext/hash/config.m4
+        sed -i 's/hash_tiger.c//g' ext/hash/config.m4
+        sed -i 's/hash_haval.c//g' ext/hash/config.m4
+        sed -i 's/hash_gost.c//g' ext/hash/config.m4
+        sed -i 's/hash_snefru.c//g' ext/hash/config.m4
+        sed -i 's/hash_ripemd.c//g' ext/hash/config.m4
+        sed -i 's/hash_md2.c//g' ext/hash/config.m4
+        sed -i 's/hash_md4.c//g' ext/hash/config.m4
+        sed -i 's/hash_sha3.c//g' ext/hash/config.m4
+        sed -i 's/hash_adler32.c//g' ext/hash/config.m4
+        sed -i 's/hash_crc32.c//g' ext/hash/config.m4
+        sed -i 's/hash_fnv.c//g' ext/hash/config.m4
+        sed -i 's/hash_joaat.c//g' ext/hash/config.m4
+        sed -i 's/hash_xxhash.c//g' ext/hash/config.m4
+        # Regenerar configure para aplicar cambios
+        ./buildconf --force
+    fi
 
     find . -name "*.lo" -delete 2>/dev/null || true
     find . -name "*.o" -delete 2>/dev/null || true
@@ -137,13 +167,17 @@ From: emscripten/emsdk:3.1.61
         -c ./phpw.c \
         -o "$BUILD_DIR/phpw.o"
 
+    # --- Preparar php-nano.ini optimizado ---
+    echo "Embedding optimized php.ini..."
+    cp /src/php-nano.ini ./php.ini
+
     # --- Linking NANO a WASM (optimizado pero funcional) ---
     echo "Linking to WASM (NANO build with safe optimizations)..."
     emcc $OPTIMIZE $SAFE_FLAGS \
         -o /output/php-web.mjs \
         $LDFLAGS \
         -flto \
-        -s EXPORTED_FUNCTIONS='["_phpw","_phpw_flush","_phpw_exec","_phpw_run","_chdir","_setenv","_php_embed_init","_php_embed_shutdown","_zend_eval_string"]' \
+        -s EXPORTED_FUNCTIONS='["_phpw","_phpw_flush","_chdir","_setenv","_php_embed_init","_php_embed_shutdown","_zend_eval_string"]' \
         -s EXPORTED_RUNTIME_METHODS='["ccall","UTF8ToString","lengthBytesUTF8","FS"]' \
         -s ENVIRONMENT=web \
         -s FORCE_FILESYSTEM=1 \
@@ -160,11 +194,12 @@ From: emscripten/emsdk:3.1.61
         -s MODULARIZE=1 \
         -s INVOKE_RUN=0 \
         -s LZ4=0 \
-        -s STACK_SIZE=256kb \
+        -s STACK_SIZE=128kb \
         -s ABORTING_MALLOC=0 \
         -s INCOMING_MODULE_JS_API=['print','wasmBinary','noInitialRun'] \
         -s EXPORT_ES6=1 \
         -s EXPORT_NAME=createPhpModule \
+        --embed-file ./php.ini@/src/php/php.ini \
         -lidbfs.js \
         "$BUILD_DIR/phpw.o" .libs/libphp.a
 
