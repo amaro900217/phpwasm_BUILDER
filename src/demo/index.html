@@ -4,40 +4,30 @@
 <meta charset="UTF-8">
 <title>PHP WASM</title>
 </head>
-<body style="margin:0; padding:0;">
-
-<iframe id="frame" style="border:0; width:100vw; height:100vh;"></iframe>
-
+<body style="margin:0; padding:0;overflow:hidden;width:100vw;height:100vh;">
+<iframe id="frame" style="border:0;padding:0;width:100vw;height:100vh;"></iframe>
 <script type="module">
-import phpBinary from "./php-web.mjs";
-
+import phpBinary from "/php-web.mjs";
 let phpBuffer = [];
-
 async function main() {
     const php = await phpBinary({
         print: (data) => phpBuffer.push(data),
-        //printErr: (data) => console.error("[PHP]", data),
         noInitialRun: true
     });
-
-    php.FS.writeFile("/phpinfo.php", "<?php phpinfo(); ?>");
+    window.php = php;
+    php.FS.writeFile("/www/phpinfo.php", "<?php phpinfo(); ?>");
     phpBuffer = [];
-    php.ccall("phpw", null, ["string"], ["/phpinfo.php"]);
-
+    php.ccall("phpw", null, ["string"], ["/www/phpinfo.php"]);
     await new Promise(r => setTimeout(r, 0));
-
     const html = phpBuffer.join("");
     const frame = document.getElementById("frame");
     const doc = frame.contentDocument || frame.contentWindow.document;
-
     doc.open();
     doc.write(html);
     doc.close();
 }
- 
 main().catch(console.error);
 </script>
-
 </body>
 </html>
 
