@@ -81,7 +81,7 @@ Presets are ZIP files in `src/presets/` containing:
 
 - **Apptainer not found**: Ensure Apptainer/Singularity is installed and in your PATH
 - **Build fails**: Check error messages and ensure all dependencies are installed
-- **Compression not working**: Install lz4 or just dont use `--compress` flag
+- **Compression not working**: Install lz4 or just do not use `--compress` flag
 
 ---
 
