@@ -291,7 +291,8 @@ try {
             $lz4File = $wasmFile . '.lz4';
             exec('lz4 --version', $out, $ret);
             if ($ret === 0) {
-                executeCommand("lz4 -9 -f $wasmFile $lz4File");
+                executeCommand("lz4 --best -B $wasmFile $lz4File");
+                // executeCommand("lz4 -9 -f $wasmFile $lz4File");
                 echo "  ✅ $lz4File (Compressed)\n";
             } else {
                 echo "  ⚠️  lz4 not found. Skipping compression.\n";
