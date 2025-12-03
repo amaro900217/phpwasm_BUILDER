@@ -31,7 +31,7 @@ A PHP to WebAssembly compilation system using Apptainer/Singularity. The generat
 - lz4 (*optional*, for --compress)
 - Apptainer/Singularity (https://apptainer.org/)
 - Internet connection (to download source code when using presets)
-- Linux; Windows via WSL (inside WSL filesystem only!); Mac OS (not tested)
+- Linux OK; Windows via WSL (inside WSL filesystem only!); Mac OS (not tested)
 
 ---
 
