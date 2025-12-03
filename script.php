@@ -2,7 +2,7 @@
 <?php
 
 /**
- * PHP-WASM Builder Script
+ * PHP WASM Builder Script
  * 
  * This script compiles PHP to WebAssembly using Apptainer/Singularity.
  * It uses .ZIP presets from 'src/presets/' and web files from 'src/www/'.
@@ -198,7 +198,7 @@ function parseArguments($argv) {
  * 
  * This function searches for .zip files in the src/presets/ directory and
  * returns an array of absolute paths to each preset file. Presets are
- * expected to be ZIP archives containing PHP-WASM build configurations.
+ * expected to be ZIP archives containing PHP WASM build configurations.
  * 
  * @throws RuntimeException If no preset files are found
  * @return array Array of absolute paths to preset files
@@ -275,7 +275,7 @@ function extractPreset($zipPath, $destDir) {
  * This function sets up the build environment by:
  * 1. Creating necessary temporary directories
  * 2. Extracting the selected preset
- * 3. Copying the PHP-WASM wrapper (phpw.c)
+ * 3. Copying the PHP WASM wrapper (phpw.c)
  * 4. Copying the www directory with web files
  * 
  * @param string $presetPath Path to the selected preset ZIP file
@@ -320,7 +320,7 @@ function prepareBuildDirectory($presetPath, $wwwSource) {
  * 
  * This function outputs a formatted help message showing all available
  * command-line options and their descriptions. It provides users with
- * information on how to use the PHP-WASM Builder script effectively.
+ * information on how to use the PHP WASM Builder script effectively.
  * 
  * The displayed information includes:
  * - Available command-line options
@@ -330,7 +330,7 @@ function prepareBuildDirectory($presetPath, $wwwSource) {
  * @return void
  */
 function displayUsage() {
-    echo "\nPHP-WASM Builder Script\n";
+    echo "\nPHP WASM Builder Script\n";
     echo "=======================\n\n";
     echo "Automates building custom PHP WASM binaries using Apptainer.\n\n";
     echo "Usage: php script.php [options]\n\n";
@@ -357,7 +357,7 @@ function displayUsage() {
 /**
  * Main script execution
  * 
- * This is the entry point that orchestrates the PHP-WASM build process:
+ * This is the entry point that orchestrates the PHP WASM build process:
  * 1. Parse command line arguments
  * 2. Set up build environment
  * 3. Build Apptainer image
@@ -372,7 +372,7 @@ try {
         exit(0);
     }
     clearScreen();
-    echo "=== PHP-WASM Builder Script ===\n\n";
+    echo "=== PHP WASM Builder Script ===\n\n";
     $options = parseArguments($argv);
     $presets = listPresets();
     $selectedPreset = selectPreset($presets);
@@ -385,14 +385,14 @@ try {
     echo "\n[STEP 1/2] Building Apptainer image...\n";
     echo str_repeat("-", 80) . "\n";
     $defPath = getcwd() . '/tmp/src/phpw.def';
-    executeCommand("apptainer build --force tmp/php-wasm.sif " . escapeshellarg($defPath));
-    echo "\n[STEP 2/2] Running container to compile PHP-WASM...\n";
+    executeCommand("apptainer build --force tmp/phpw.sif " . escapeshellarg($defPath));
+    echo "\n[STEP 2/2] Running container to compile PHP WASM...\n";
     echo str_repeat("-", 80) . "\n";
     $command = 'apptainer run ';
     $command .= '-B "' . getcwd() . '/tmp":/tmp ';
     $command .= '-B "' . getcwd() . '/tmp/src":/src ';
     $command .= '-B "' . getcwd() . '":/output ';
-    $command .= 'tmp/php-wasm.sif';
+    $command .= 'tmp/phpw.sif';
     executeCommand($command);
     if ($options['keep_tmp']) {
         echo "\n[CLEANUP] Skipped (--keep-tmp active)\n";

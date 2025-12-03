@@ -25,13 +25,13 @@ A PHP to WebAssembly compilation system using Apptainer/Singularity. The generat
 
 ---
 
-## Prerequisites
+## System Prerequisites
 
-- PHP 8.3 or higher
-- lz4 (optional, for compression)
+- PHP >= 8.3.6 with php-zip
+- lz4 (*optional*, for --compress)
 - Apptainer/Singularity (https://apptainer.org/)
-- Internet connection to download PHP and library source code
-- Linux operating system (not yet tested on macOS or Windows)
+- Internet connection (to download preset source code)
+- Linux; Windows via WSL (inside WSL filesystem only!); Mac OS (not tested)
 
 ---
 
