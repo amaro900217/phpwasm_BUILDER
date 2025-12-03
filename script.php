@@ -9,7 +9,16 @@
  * 
  */
 
-// Function to execute commands and display output in real time
+/**
+ * Execute a shell command and display its output in real-time
+ * 
+ * This function runs a shell command using passthru() to display output
+ * as it's generated. It throws an exception if the command fails.
+ * 
+ * @param string $command The shell command to execute
+ * @throws RuntimeException If the command returns a non-zero exit code
+ * @return void
+ */
 function executeCommand($command) {
     passthru($command, $returnVar);
     if ($returnVar !== 0) {
@@ -17,7 +26,15 @@ function executeCommand($command) {
     }
 }
 
-// Function to clear screen
+/**
+ * Clear the terminal/console screen in a cross-platform manner
+ * 
+ * This function detects the operating system and uses the appropriate command
+ * to clear the terminal screen. It supports both Windows (cls) and Unix-like
+ * systems (clear).
+ * 
+ * @return void
+ */
 function clearScreen() {
     if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
         system('cls');
@@ -26,7 +43,16 @@ function clearScreen() {
     }
 }
 
-// Function to check if Apptainer is installed
+/**
+ * Verify Apptainer/Singularity installation and internet connectivity
+ * 
+ * This function performs two critical checks:
+ * 1. Verifies that Apptainer/Singularity is installed and accessible in the system PATH
+ * 2. Tests internet connectivity which is required for downloading dependencies
+ * 
+ * @throws RuntimeException If Apptainer is not found
+ * @return void
+ */
 function checkApptainer() {
     echo "\n[CHECK] Checking Apptainer...\n";    
     $cmd = (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') ? 'apptainer --version' : 'apptainer --version 2>&1';
@@ -54,7 +80,14 @@ function checkApptainer() {
     }
 }
 
-// Check if lz4 is installed
+/**
+ * Check if lz4 compression utility is available in the system
+ * 
+ * This function verifies if the lz4 compression tool is installed and accessible
+ * from the system's PATH. It's used to determine if the --compress option can be used.
+ * 
+ * @return bool Returns true if lz4 is installed and available, false otherwise
+ */
 function checkLz4() {
     echo "\n[CHECK] Checking lz4...\n";
     $cmd = (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') 
@@ -70,7 +103,12 @@ function checkLz4() {
     return true;
 }
 
-// Function to clean up temporary files
+/**
+ * Clean up temporary files and directories
+ * 
+ * @param bool $onError If true, indicates the cleanup is happening after an error
+ * @return void
+ */
 function cleanup($onError = false) {
     if (is_dir('tmp')) {
         echo "\n[CLEANUP] Removing tmp/...\n";
@@ -78,7 +116,12 @@ function cleanup($onError = false) {
     }
 }
 
-// Function to recursively delete a directory (Cross-platform)
+/**
+ * Recursively delete a directory and its contents (Cross-platform)
+ * 
+ * @param string $dir The directory path to delete
+ * @return void
+ */
 function deleteDirectory($dir) {
     if (!is_dir($dir)) {
         return;
@@ -91,7 +134,14 @@ function deleteDirectory($dir) {
     rmdir($dir);
 }
 
-// Function to clean existing files before starting
+/**
+ * Remove existing WebAssembly and JavaScript module files before starting a new build
+ * 
+ * This function removes any .wasm, .mjs, and .wasm.lz4 files in the current directory
+ * to prevent conflicts with new builds.
+ * 
+ * @return void
+ */
 function cleanExistingFiles() {
     echo "\n[INITIAL CLEANUP] Removing existing WASM/MJS files...\n";
     $files = glob('*.wasm');
@@ -109,7 +159,17 @@ function cleanExistingFiles() {
     }
 }
 
-// Function to parse command line arguments
+/**
+ * Parse command line arguments and return an array of options
+ * 
+ * Supported arguments:
+ * --keep-tmp  Keep temporary files after build
+ * --www=path  Custom path for web files (default: 'src/www/')
+ * --compress  Enable compression of output files
+ * 
+ * @param array $argv Command line arguments
+ * @return array Parsed options
+ */
 function parseArguments($argv) {
     $options = [
         'keep_tmp' => false,
@@ -133,7 +193,16 @@ function parseArguments($argv) {
     return $options;
 }
 
-// Function to list available presets
+/**
+ * Scan and list all available preset files in the presets directory
+ * 
+ * This function searches for .zip files in the src/presets/ directory and
+ * returns an array of absolute paths to each preset file. Presets are
+ * expected to be ZIP archives containing PHP-WASM build configurations.
+ * 
+ * @throws RuntimeException If no preset files are found
+ * @return array Array of absolute paths to preset files
+ */
 function listPresets() {
     $presets = glob('src/presets/*.zip');
     if (empty($presets)) {
@@ -142,7 +211,16 @@ function listPresets() {
     return $presets;
 }
 
-// Function to select a preset
+/**
+ * Display an interactive menu to select a preset from the available options
+ * 
+ * This function presents a numbered list of available presets and prompts the user
+ * to select one. It validates the input and returns the path to the selected preset.
+ * 
+ * @param array $presets Array of preset file paths
+ * @throws RuntimeException If an invalid selection is made
+ * @return string Path to the selected preset file
+ */
 function selectPreset($presets) {
     echo "Available presets:\n\n";
     foreach ($presets as $index => $preset) {
@@ -161,7 +239,18 @@ function selectPreset($presets) {
     throw new RuntimeException("Invalid selection");
 }
 
-// Function to extract preset
+/**
+ * Extract a preset ZIP file to the specified destination directory
+ * 
+ * This function extracts the contents of a preset ZIP file to the target directory.
+ * It ensures the destination exists and validates that the ZIP file contains
+ * the required files (phpw.def and phpw.ini).
+ * 
+ * @param string $zipPath Path to the preset ZIP file
+ * @param string $destDir Destination directory for extraction
+ * @throws RuntimeException If extraction fails or required files are missing
+ * @return void
+ */
 function extractPreset($zipPath, $destDir) {
     echo "\n[PRESET] Extracting " . basename($zipPath) . "...\n";
     $zip = new ZipArchive;
@@ -169,18 +258,31 @@ function extractPreset($zipPath, $destDir) {
         $zip->extractTo($destDir);
         $zip->close();
         echo "  ✅ Extracted to $destDir\n";
-        if (!file_exists("$destDir/php-web.def")) {
-            throw new RuntimeException("Preset missing php-web.def");
+        if (!file_exists("$destDir/phpw.def")) {
+            throw new RuntimeException("Preset missing phpw.def");
         }
-        if (!file_exists("$destDir/php-web.ini")) {
-            throw new RuntimeException("Preset missing php-web.ini");
+        if (!file_exists("$destDir/phpw.ini")) {
+            throw new RuntimeException("Preset missing phpw.ini");
         }
     } else {
         throw new RuntimeException("Failed to open zip file");
     }
 }
 
-// Function to prepare build directory
+/**
+ * Prepare the build directory structure and copy necessary files
+ * 
+ * This function sets up the build environment by:
+ * 1. Creating necessary temporary directories
+ * 2. Extracting the selected preset
+ * 3. Copying the PHP-WASM wrapper (phpw.c)
+ * 4. Copying the www directory with web files
+ * 
+ * @param string $presetPath Path to the selected preset ZIP file
+ * @param string $wwwSource  Path to the source www directory
+ * @throws RuntimeException If any critical file operations fail
+ * @return void
+ */
 function prepareBuildDirectory($presetPath, $wwwSource) {
     echo "\n[PREPARE] Setting up build environment...\n";    
     @mkdir('tmp', 0755, true);
@@ -213,7 +315,20 @@ function prepareBuildDirectory($presetPath, $wwwSource) {
     }
 }
 
-// Function to display usage
+/**
+ * Display usage information and command-line options
+ * 
+ * This function outputs a formatted help message showing all available
+ * command-line options and their descriptions. It provides users with
+ * information on how to use the PHP-WASM Builder script effectively.
+ * 
+ * The displayed information includes:
+ * - Available command-line options
+ * - Default values for optional parameters
+ * - Examples of common usage patterns
+ * 
+ * @return void
+ */
 function displayUsage() {
     echo "\nPHP-WASM Builder Script\n";
     echo "=======================\n\n";
@@ -226,21 +341,31 @@ function displayUsage() {
     echo "  --compress      Compress the generated .wasm file using lz4\n";
     echo "  --help          Show this help message\n\n";
     echo "Structure:\n";
-    echo "  src/presets/ -> Build presets ZIPs (must contain php-web.def & php-web.ini)\n";
+    echo "  src/presets/ -> Build presets ZIPs (must contain phpw.def & phpw.ini)\n";
     echo "  src/www/     -> Optional web project files to embed\n\n";
     echo "Workflow:\n";
     echo "  1. Select a preset from src/presets/ (PHP version, optimizations..)\n";
     echo "  2. Script extracts preset & prepares src/www/\n";
     echo "  3. Apptainer compiles the WASM binary\n";
-    echo "  4. Output: php-web.wasm & php-web.mjs\n\n";
+    echo "  4. Output: phpw.wasm & phpw.mjs\n\n";
     echo "Testing:\n";
-    echo "  1. cp php-web.wasm php-web.mjs src/demo/\n";
-    echo "  2. php -S 0.0.0.0:8080\n";
-    echo "  3. Open http://localhost:8080/src/demo/\n\n";
+    echo "  1. php -S 0.0.0.0:8080\n";
+    echo "  2. Open http://localhost:8080/src/demo/\n\n";
     echo "Note: Existing .wasm/.wasm.lz4/.mjs files are deleted on start. Requires Apptainer & Internet.\n\n";
 }
 
-// Start of script
+/**
+ * Main script execution
+ * 
+ * This is the entry point that orchestrates the PHP-WASM build process:
+ * 1. Parse command line arguments
+ * 2. Set up build environment
+ * 3. Build Apptainer image
+ * 4. Compile PHP to WebAssembly
+ * 5. Handle post-build operations
+ * 
+ * @global array $argv Command line arguments
+ */
 try {
     if (in_array('--help', $argv) || in_array('-h', $argv)) {
         displayUsage();
@@ -259,8 +384,8 @@ try {
     prepareBuildDirectory($selectedPreset, $options['www_path']);
     echo "\n[STEP 1/2] Building Apptainer image...\n";
     echo str_repeat("-", 80) . "\n";
-    $defPath = getcwd() . '/tmp/src/php-web.def';
-    executeCommand("apptainer build tmp/php-wasm.sif " . escapeshellarg($defPath));
+    $defPath = getcwd() . '/tmp/src/phpw.def';
+    executeCommand("apptainer build --force tmp/php-wasm.sif " . escapeshellarg($defPath));
     echo "\n[STEP 2/2] Running container to compile PHP-WASM...\n";
     echo str_repeat("-", 80) . "\n";
     $command = 'apptainer run ';
@@ -276,8 +401,8 @@ try {
     }
     echo "\n✨ Process completed successfully! ✨\n\n";
     echo "Generated files:\n";
-    $wasmFile = 'php-web.wasm';
-    $mjsFile = 'php-web.mjs';
+    $wasmFile = 'phpw.wasm';
+    $mjsFile = 'phpw.mjs';
     if (file_exists($wasmFile) && file_exists($mjsFile)) {
         echo "  ✅ $wasmFile\n";
         echo "  ✅ $mjsFile\n";
@@ -293,17 +418,21 @@ try {
             if ($ret === 0) {
                 executeCommand("lz4 --best -B $wasmFile $lz4File");
                 // executeCommand("lz4 -9 -f $wasmFile $lz4File");
-                echo "  ✅ $lz4File (Compressed)\n";
+                // Remove original .wasm file after successful compression
+                if (file_exists($lz4File)) {
+                    unlink($wasmFile);
+                    echo "  ✅ $lz4File (Compressed, original .wasm removed)\n";
+                } else {
+                    echo "  ⚠️  Compression may have failed, keeping original .wasm file\n";
+                }
             } else {
                 echo "  ⚠️  lz4 not found. Skipping compression.\n";
             }
         }
         echo "\n🚀 To test your build:\n";
-        echo "   1. Copy files to demo folder:\n";
-        echo "      cp $wasmFile $mjsFile src/demo/\n";
-        echo "   2. Run test server:\n";
+        echo "   1. Run test server:\n";
         echo "      php -S 0.0.0.0:8080\n";
-        echo "   3. Open http://localhost:8080/src/demo/\n\n";
+        echo "   2. Open http://localhost:8080/src/demo/\n\n";
     } else {
         echo "❌ No .mjs/.wasm generated files found\n";
         echo "   Check the output above for any errors\n";
