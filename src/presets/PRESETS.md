@@ -72,6 +72,14 @@ A minimal PHP build with only essential extensions enabled. This results in a sm
 - When binary size is a critical factor
 - Learning/experimental projects
 
+### 3. php-8.5.0-fs-opcache
+
+TODO: documentation
+
+### 4. php-8.5.0-fs-opcache-keepalive
+
+TODO: documentation (warning, requires phpw.c update)
+
 ## How to Use a Preset
 
 1. Run the build script:
